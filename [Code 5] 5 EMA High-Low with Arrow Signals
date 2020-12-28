@@ -1,0 +1,18 @@
+//5 EMA High-Low
+_SECTION_BEGIN("5 EMA High-Low");
+SetChartOptions(0,chartShowArrows|chartShowDates);
+_N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Close %g (%.1f%%) {{VALUES}}", O, H, L, C, SelectedValue( ROC( C, 1 ) ) ));
+Plot( Close, "Close", ParamColor("Color", colorBlack ), styleNoTitle | ParamStyle("Style") | GetPriceStyle() ); 
+Buy = Cross(Close,EMA( High , 5 ));
+Sell = Cross(EMA( Low , 5 ),Close);
+PlotShapes(IIf(Sell==1, shapeDownArrow, shapeNone), colorRed, 0,High, Offset=-20);
+PlotShapes(IIf(Buy==1, shapeUpArrow , shapeNone), colorGreen, 0,Low, Offset=-20);
+Plot( EMA( Low,5), "5 EMA LOW",ParamColor("Color", colorBlue ),styleNoRescale);
+Plot( EMA( High,5), "5 EMA High",ParamColor("Color", colorBlue ),styleNoRescale); 
+_SECTION_END();
+
+_SECTION_BEGIN("Display the Title");
+Title = "5 EMA High-Low ( MKT CALLS) " + " - " +  Name() + " - " + EncodeColor(colorRed)+ Interval(2) + EncodeColor() +
+
+ "  - " + Date() +" - " +EncodeColor(colorLime)+
+_SECTION_END();
