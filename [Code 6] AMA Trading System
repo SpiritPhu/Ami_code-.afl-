@@ -1,0 +1,61 @@
+//90 Percent Accurate AMA System
+_SECTION_BEGIN("AMA System");
+
+SetChartOptions(0,chartShowArrows|chartShowDates);
+_N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Close %g (%.1f%%) {{VALUES}}", O, H, L, C, SelectedValue( ROC( C, 1 ) ) ));
+
+
+// Buy adjustments
+bs=Optimize("BUY Sensitivity",3,2,20,1);
+bf=Param("BUY Finetune",0.1,0.1,20,0.1);
+// Sell Adjustments
+ss=Optimize("SELL Sensitivity",3,2,20,1);
+sf=Param("SELL Finetune",0.1,0.1,20,0.1);
+
+// common
+fast = 2/(2+1);
+slow = 2/(30+1);
+//BUY part
+dirb=abs(Close-Ref(Close,-bs));
+volb=Sum(abs(Close-Ref(Close,-1)),bs);
+ERb=dirb/volb;
+scb =( ERb*(fast-slow)+slow)^2; 
+xb = AMA( C, scb ); 
+flb=bf*StDev(xb-Ref(xb,-1),20);
+j=xb-Ref(xb,-3);
+
+
+//SELL part
+dirs=abs(Close-Ref(Close,-ss));
+vols=Sum(abs(Close-Ref(Close,-1)),ss);
+ERs=dirs/vols;
+scs =( ERs*(fast-slow)+slow)^2; 
+xs = AMA( C, scs ); 
+fls=sf*StDev(xs-Ref(xs,-1),20);
+k=Ref(Xs,-3)-Xs;
+
+Buy=Cross(j,flb);
+Sell=Cross(k,fls);
+mycolor=IIf(C>xb,colorDarkGreen,colorRed);
+Plot( C, "Close", mycolor,styleNoTitle | styleBar|styleThick   ); 
+Plot(xb,"KAMA-BUY",colorYellow,1);
+Plot(xs,"KAMA-SELL",colorOrange,1);
+Buy = ExRem(Buy,Sell);
+Sell = ExRem(Sell,Buy);
+Short = Sell;
+Cover = Buy;
+
+shape = Buy * shapeUpArrow +Sell * shapeDownArrow ;
+
+PlotShapes( shape, IIf( Buy, colorGreen, colorRed),0, IIf( Buy, Low, High ) );
+
+GraphXSpace = 5;
+dist = 1.5*ATR(20); 
+
+for( i = 0; i < BarCount; i++ ) 
+{ 
+if( Buy[i] ) PlotText( "Buy\n@" + C[ i ], i, L[ i ]-dist[i], colorDarkGreen ); 
+if( Sell[i] ) PlotText( "sell\n@" + C[ i ], i, L[ i ]+dist[i], colorRed ); 
+} 
+
+_SECTION_END();
