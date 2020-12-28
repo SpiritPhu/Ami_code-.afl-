@@ -1,0 +1,28 @@
+//ASI
+_SECTION_BEGIN("ASI");
+   
+
+n=Optimize("period",14,1,100,1);/*period*/
+
+    A=0;
+    M=0;
+    D=0;
+
+ diff = Close - Ref(Close, -1);
+ratio = Close / Ref(Close, -1);
+
+A = EMA(IIf(diff > 0, ratio - 1, 0), n);
+M = EMA(IIf(diff == 0, 1 / n, 0), n);
+D = EMA(IIf(diff < 0, 1 / ratio - 1, 0), n);
+
+ASI=IIf (D+M/2==0, 100, 100-100/(1+(A+M/2)/(D+M/2)));
+
+
+  Plot(ASI,"ASI10",colorBlue); 
+  
+  Plot(50,"",colorBlack,styleLine,styleThick);
+  Plot(70,"",colorBrightGreen,styleLine,styleThick);    
+  Plot(30,"",colorRed,styleLine,styleThick);  
+
+GraphXSpace = 3;
+_SECTION_END();
