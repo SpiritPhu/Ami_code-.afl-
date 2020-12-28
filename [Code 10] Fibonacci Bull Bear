@@ -1,0 +1,88 @@
+//Accurate Fibonacci Bull Bear Phase
+_SECTION_BEGIN("Price");
+SetChartOptions(0,chartShowArrows|chartShowDates);
+SetBarFillColor(IIf(C>O,ParamColor("Candle Up Color",colorBrightGreen),IIf(C<=O,ParamColor("Candle Down Color",colorRed),colorLightGrey)));//Up=Lime/Down=Red
+Plot(C,"Price",IIf(C>O,ParamColor("Shadow Up Color",colorBlack),IIf(C<=O,ParamColor("Shadow Down Color",colorBlack),colorLightGrey)),64,0,0,0,0);//Up=DarkGreen/Down=DarkRed/64=Candle/128=Bar
+SetChartBkColor(ParamColor("Panel Color",colorPaleGreen));
+SetChartBkGradientFill(ParamColor("Upper Chart",colorLightGrey),ParamColor("Lower Chart",colorLightGrey));
+dec=(Param("Decimals",2,0,7,1)/10)+1;
+GraphXSpace=Param("GraphXSpace",20,-10,25,1);
+_SECTION_END();
+
+_SECTION_BEGIN("Fibonacci Fractals");
+/*Fractals and Fib Levels
+by Ipeleng Molete
+30 October 2011
+*/
+fral= Param("Fractal Periods",13,1,50,1);
+
+PHigh = H > Ref(HHV(H,fral),-1) AND Ref(HHV(H,fral),fral) <= H;
+PHighPrice = ValueWhen(PHigh,H);
+PLow = L < Ref(LLV(L,fral),-1) AND Ref(LLV(L,fral),fral) >= L;
+PLowPrice = ValueWhen(PLow,L); 
+
+Bear = ValueWhen(PHigh, DateTime());
+Bull = ValueWhen(PLow, DateTime());
+
+PlotShapes(shapeSmallCircle*PLow,colorGreen,0,L,-10);
+PlotShapes(shapeSmallCircle*PHigh,colorRed,0,H,10);
+
+//Plot(PLowPrice, "Fractal Low", colorGreen, styleDots | styleNoLine);
+//Plot(PHighPrice, "Fractal High", colorRed, styleDots | styleNoLine);
+
+phase = IIf(bull > bear, 0, 1);
+
+//Fib Level Calculation
+//If previous fractal was down fractal, then Fib Level is worked out
+//by subtracting the down fractal from the up fractal and vice versa
+
+HiLoDifference = IIf(phase == 0, PLowPrice - PHighPrice, PHighPrice - PLowPrice);
+
+Level1 = abs(HiLoDifference)*0.382;
+Level2 = abs(HiLoDifference)*0.5;
+Level3 = abs(HiLoDifference)*0.618;
+Level4 = abs(HiLoDifference)*0.784;
+Level5 = abs(HiLoDifference)*1.0;
+Level6 = abs(HiLoDifference)*1.272;
+Level7 = abs(HiLoDifference)*1.618;
+Level8 = abs(HiLoDifference)*2.618;
+
+Level0382 = IIf(phase == 0, PLowPrice + Level1, PHighPrice - Level1);
+Level05   = IIf(phase == 0, PLowPrice + Level2, PHighPrice - Level2);
+Level0618 = IIf(phase == 0, PLowPrice + Level3, PHighPrice - Level3);
+Level0784 = IIf(phase == 0, PLowPrice + Level4, PHighPrice - Level4);
+Level10   = IIf(phase == 0, PLowPrice + Level5, PHighPrice - Level5);
+Level1272 = IIf(phase == 0, PLowPrice + Level6, PHighPrice - Level6);
+Level1618 = IIf(phase == 0, PLowPrice + Level7, PHighPrice - Level7);
+Level2618 = IIf(phase == 0, PLowPrice + Level8, PHighPrice - Level8);
+
+//Graph
+Plot(Level0382,"38.2%=",colorLightYellow, styleDots | styleNoLine|styleNoRescale );
+Plot(Level05,"50%=",colorGold, styleDots | styleNoLine|styleNoRescale );
+Plot(Level0618,"61.8%=",colorOrange, styleDots | styleNoLine|styleNoRescale );
+Plot(Level0784,"78.4%=",colorRed, styleDots | styleNoLine|styleNoRescale );
+Plot(Level10,"1.0%=",colorBlack, styleDots | styleNoLine|styleNoRescale );
+Plot(Level1272,"127.2%=",colorBlue, styleDots | styleNoLine|styleNoRescale );
+Plot(Level1618,"161.8%=",colorSkyblue, styleDots | styleNoLine|styleNoRescale );
+Plot(Level2618,"261.8%=",colorPink, styleDots | styleNoLine|styleNoRescale );
+
+
+BarTime1=LastValue(TimeNum() - Now(4));  
+DataError=IIf(Now(4) > TimeNum(),True,False); 
+TimeBase=IIf(Interval(1)>0,1,0); 
+_N(StrBarTime=NumToStr(BarTime1,1.0,False)); 
+BT_Length=StrLen(StrBarTime); 
+_N(TimeLeft_= 
+WriteIf(BT_Length==1,"0:0"+StrBarTime,WriteIf(BT_Length==2,"0:"+StrBarTime, 
+WriteIf(BT_Length==3,StrLeft(StrBarTime,1)+":"+StrRight(StrBarTime,2), 
+StrLeft(StrBarTime,2)+":"+StrRight(StrBarTime,2))))); 
+TimeLeft=WriteIf(TimeBase==1,TimeLeft_,"N/A"); 
+Title = WriteIf(phase == 0, EncodeColor(27)+ "BULL Phase", EncodeColor(32)+ "BEAR Phase") +
+EncodeColor(16)+ " \nHigh = "+ EncodeColor(27) + WriteVal(H,dec) +
+EncodeColor(16)+ "   Low = "+ EncodeColor(32)+ WriteVal(L,dec) + 
+EncodeColor(16) +"  TimeLeft = "+ EncodeColor(29) +TimeLeft  +
+EncodeColor(16)+ "   Volume = "+ EncodeColor(18)+ WriteVal(V,1.0)+
+EncodeColor(colorBlue) + "\nFractal Periods:    " + NumToStr(fral, 1.0) +
+EncodeColor(colorRed) + "\nLast Up Fractal:         " + NumToStr(PHighPrice, 1.4) + 
+EncodeColor(colorGreen) + "\nLast Down Fractal:    " + NumToStr(PLowPrice, 1.4);
+_SECTION_END();
