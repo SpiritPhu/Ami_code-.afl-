@@ -1,0 +1,31 @@
+//Heiken Ashi, Bolinger Bands, ADX
+//================================================== ======================
+// HBA Trading system (Heiken Ashi, Bolinger Bands, ADX)
+
+//================================================== ==================================
+SetChartOptions(0,chartShowArrows | chartShowDates);
+
+// 1. Heiken Ashi
+HaClose = (O + H + L + C)/4;
+HaOpen = AMA( Ref( HaClose, -1 ), 0.5 );
+HaHigh = Max( H, Max( HaClose, HaOpen ) );
+HaLow = Min( L, Min( HaClose, HaOpen ) );
+xDiff = (HaHigh - Halow);
+barcolor = IIf(HaClose >= HaOpen,colorBrightGreen,colorRed);
+PlotOHLC( HaOpen, HaHigh, HaLow, HaClose, "", barcolor, styleCandle );
+
+// 2. Bolinger Bands
+BBTop=BBandTop(H,10,2);
+BBBot=BBandBot(L,10,2);
+BBMid=(BBTop+BBBot)/2;
+
+Plot(BBTop,"",12,1);
+Plot(BBMid,"",12,1);
+Plot(BBBot,"",12,1);
+
+
+// Buy, sell
+EntryLong = Cross(C,BBMid) AND HaClose>HaOpen AND xDiff>1 AND ADX(14)<40;
+ExitLong = Cross(BBMid,C) AND HaClose<HaOpen AND xDiff>1;
+PlotShapes(IIf(EntryLong , shapeSmallUpTriangle, shapeNone) ,colorBrightGreen, 0,L,-30);
+PlotShapes(IIf( ExitLong , shapeSmallDownTriangle, shapeNone) ,colorOrange, 0,H,-25);
