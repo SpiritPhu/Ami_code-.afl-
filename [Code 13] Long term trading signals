@@ -1,0 +1,26 @@
+//Long term trending
+_SECTION_BEGIN("MACD");
+r1 = Param( "Fast avg", 12, 2, 200, 1 );
+r2 = Param( "Slow avg", 26, 2, 200, 1 );
+r3 = Param( "Signal avg", 9, 2, 200, 1 );
+Plot( ml = MACD(r1, r2), StrFormat(_SECTION_NAME()+"(%g,%g)", r1, r2), ParamColor("MACD color", colorRed ), ParamStyle("MACD style") );
+Plot( sl = Signal(r1,r2,r3), "Signal" + _PARAM_VALUES(), ParamColor("Signal color", colorBlue ), ParamStyle("Signal style") );
+Plot( ml-sl, "MACD Histogram", ParamColor("Histogram color", colorBlack ), styleNoTitle | ParamStyle("Histogram style", styleHistogram | styleNoLabel, maskHistogram ) );
+
+
+_SECTION_END();
+
+
+if(StrToNum(NumToStr(MA( C, 3 )> MA(C,15))))bgColor = ColorRGB(0,66, 2);
+else bgColor = ColorRGB(66,2, 0);
+SetChartBkGradientFill( colorBlack, bgColor); 
+
+
+
+
+
+
+Buy = Cover = Cross(ml,sl );
+Sell= Short = Cross(sl,ml);
+shape = Buy * shapeUpArrow+ Sell * shapeDownArrow;
+PlotShapes( shape, IIf( Buy, colorBrightGreen, colorRed ), 0, IIf( Buy, sl,sl ) );
