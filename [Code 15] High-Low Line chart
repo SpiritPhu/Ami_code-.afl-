@@ -1,0 +1,420 @@
+//High-Low_candlestick
+_SECTION_BEGIN("candlestick");
+Plot (EMA(C,13),"",IIf(EMA(C,13) > Ref(EMA(C,13),-1),colorAqua,colorBrown),styleThick);
+Plot (MA(C,5),"",IIf(MA(C,5) > Ref(MA(C,5),-1),colorAqua,colorBrown),styleThick+styleDashed);
+Buy_ema = EMA(C,5) > EMA(C,34) AND EMA(C,5) > EMA(C,13);
+Sell_ema = EMA(C,5) < EMA(C,34) AND EMA(C,5) < EMA(C,13);  
+Plot(EMA(C,34),"",IIf(Buy_ema,colorAqua,IIf(sell_ema,colorBrown,colorYellow)),styleDots);
+Plot(EMA(C,34)+0.1,"",IIf(Buy_ema,colorAqua,IIf(sell_ema,colorBrown,colorYellow)),styleDots+styleNoLabel);
+Plot(EMA(C,34)-0.1,"",IIf(Buy_ema,colorAqua,IIf(sell_ema,colorBrown,colorYellow)),styleDots+styleNoLabel);
+Plot(EMA(C,34)+0.2,"",IIf(Buy_ema,colorAqua,IIf(sell_ema,colorBrown,colorYellow)),styleDots+styleNoLabel);
+Plot(EMA(C,34)-0.2,"",IIf(Buy_ema,colorAqua,IIf(sell_ema,colorBrown,colorYellow)),styleDots+styleNoLabel);
+
+//Plot (C, "", IIf(PDI() > MDI(),colorGreen,colorRed),styleCandle);
+
+A1=EMA(C,13)-EMA(C,34); 
+A2=MA(C,5)-EMA(C,34); 
+A3=MA(C,5)-EMA(C,13); 
+Buy = Buy_ema AND a2 > Ref(a2, -1)AND a3 > Ref(a3,-1) ;
+Sell = Sell_ema AND a2 < Ref(a2, -1)AND a3 < Ref(a3,-1) ;
+Buy = ExRem(Buy,Sell);
+Sell = ExRem(Sell,Buy);
+PlotShapes(Buy*shapeUpArrow,colorGreen);
+PlotShapes(Sell*shapeDownArrow,colorRed);
+
+
+_SECTION_BEGIN("ABKPPivotAndPops");
+SetBarsRequired(350, -0);
+
+//user parameters
+parmPlotScoreCard = 1;
+parmPlotA900AutoStop = 0;
+parmA900Color = colorBlack;
+parmA900Style = styleNoLabel;
+parmAutoStopColor = colorCustom12; //ParamColor("AutoStop Color", colorCustom12);
+parmAutoStopStyle = styleLine;//ParamStyle("AutoStop Style", styleLine, maskAll);
+parmPPTextColor = colorBlack;//ParamColor("PP Text color", colorBlack);
+parmPPTrndColorUp = colorGreen;//ParamColor("PP Trend Up color", colorGreen );
+parmPPTrndColorDn = colorRed;//ParamColor("PP Trend Dwn color", colorRed );
+parmPPTextOffSet = 0.9;//Param("PP OffSet", 0.90, 0.40, 1.5, 0.1);
+parmTickMultipler = 0;//Param("M/W tick allowance", 0, 0, 10, 1);
+parmA900AutoStopX = ParamToggle("Plot A900/AutoStop Cross", "No|Yes");
+parmA900AutoStopColorX = colorBlack;//ParamColor("A900/AutoStop Cross Color", colorBlack);
+ParmSCThreshold = 5;//Param("ScoreCard Threshold", 5, 1, 9, 1);
+parmVoice = 0;//ParamToggle("Pivot Voice", "No|Yes", 0);
+parmPivotPop = 1;//ParamToggle("PivotPop", "No|Yes", 1);
+parmBarCancel = 4;//Param("Bar Cancel", 4, 1, 20, 1);
+parmFilter = ParamList("Filter", "None|KPMSL|KPWaterLevel|KPMedium", 0);
+parmPlotFilter = 0;//ParamToggle("Plot Filter", "No|Yes", 0);
+parmFilterColor = colorBlack;//ParamColor("Filter Color", ColorRGB(127,255,212));
+parmFilterStyle = styleLine;//ParamStyle("Filter Style", styleLine, maskAll);
+parmBBPeriod = 20;//Param("Bollinger Band Period", 20, 2, 30, 1);
+parmBBSD = 1;//Param("Bollinger Band width", 1.0, 0.5, 3.0, 0.5);
+ParmPlotPPIndicators = 0;//ParamToggle("Plot Pivot Pop indicators", "No|Yes", 0);
+parmBBColor = colorBlack;//ParamColor("BBands Color", colorBlack);
+parmBBStyle = styleLine;//ParamStyle("BBands Style", styleLine, maskAll);
+
+ParmDebug = 0;//ParamToggle("Debug", "No|Yes", 0);
+
+// constants
+_N(PaneName = Name() + Interval(2)+ _SECTION_NAME());
+_N(NewBarName = "NewBar" + PaneName);
+
+//functions
+function NewBarP()
+{
+ PrevDT = StaticVarGet( NewBarName);
+ DT = LastValue(DateTime());
+ StaticVarSet( NewBarName,DT);
+ return DT != PrevDT;
+}
+function MRoundP(Number, Multiple )
+{
+ if(Multiple == 0 )
+ {
+
+  xMultiple = 0.01; }
+ else
+ {
+ xMultiple = Multiple; 
+ }
+ Divided = Number / xMultiple;
+ intDivided = int(Divided);
+ intDivided = intDivided + round(Divided - intDivided);
+ return intDivided * xMultiple;
+}
+
+//miscellaneous setups
+ObjAB = CreateObject("Broker.Application");
+ticker = objAB.Stocks(Name() );
+if(ticker.TickSize == 0)
+ {
+  TickValue = 0.01; //set TickValue to a penney
+ }
+else
+ {
+  TickValue = ticker.TickSize; // use Tick Size for this symbol
+ }
+NewBarSignal = NewBarP();
+//  KP Indicators
+KPA900 = E_TSKPA900(Close);
+KPAutoStop = E_TSKPAUTOSTOP(High,Low,Close);
+Ctmpl = E_TSKPCOLORTMPL(Open,High,Low,Close,Volume); //ScoreCard
+KPScoreCard = 0;
+KPScoreCard = KPScoreCard  + IIf(tskp_colortmplcnd0 > 0, 1, -1); 
+KPScoreCard = KPScoreCard  + IIf(tskp_colortmplcnd1 > 0, 1, -1); 
+KPScoreCard = KPScoreCard  + IIf(tskp_colortmplcnd2 > 0, 1, -1); 
+KPScoreCard = KPScoreCard  + IIf(tskp_colortmplcnd3 > 0, 1, -1); 
+KPScoreCard = KPScoreCard  + IIf(tskp_colortmplcnd4 > 0, 1, -1); 
+KPScoreCard = KPScoreCard  + IIf(tskp_colortmplcnd5 > 0, 1, -1); 
+KPScoreCard = KPScoreCard  + IIf(tskp_colortmplcnd6 > 0, 1, -1); 
+KPScoreCard = KPScoreCard  + IIf(tskp_colortmplcnd7 > 0, 1, -1); 
+KPScoreCard = KPScoreCard  + IIf(tskp_colortmplcnd8 > 0, 1, -1); 
+
+if(parmDebug == 1)
+ {
+  printf("a900: %0.6f% \nAutoStop: %0.6f%\nScoreCard: %0.0f%\n", KPA900, KPAutoStop, KPScoreCard);
+ }
+if(parmPlotScoreCard == 1)
+ {
+  _N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Close %g% (%0.4f%) {{VALUES}}", O, H, L, C, SelectedValue( C - Ref(C, -1)) ));
+  if( ParamToggle("Tooltip shows", "All Values|Only Prices" ) )
+  {
+    ToolTip=StrFormat("Open: %g\nHigh:  %g\nLow:   %g\nClose:  %g (%.2f%%)\nVolume: "+NumToStr( V, 1 ), O, H, L, C, SelectedValue( ROC( C, 1 )));
+  }
+  Color = IIf(KPScoreCard >= parmSCThreshold, colorBlue, IIf(KPScoreCard <= -parmSCThreshold, colorRed, colorYellow) );
+  Plot( C, "Close", Color , styleNoTitle | styleBar+styleThick ); 
+ }
+//user want A900/AutoStop plotted
+if(parmPlotA900AutoStop == 1)
+ {
+  Plot(KPA900, "A900", parmA900Color, parmA900Style);
+  Plot(KPAutoStop, "AutoStop", parmAutoStopColor, parmAutoStopStyle);
+ }
+// find A900/AutoStop cross over/under with ScoreCard confirmation.
+XOUp = (KPA900 > KPAutoStop) AND (KPScoreCard >= parmSCThreshold); // New Pivot Low
+XODn = (KPA900 < KPAutoStop) AND (KPScoreCard <= -parmSCThreshold); // New Pivot High
+if(parmDebug == 1)
+ {
+  printf(WriteIf(XOUp, "before= XOUp: True", "before= XOUp: False") + WriteIf(XODn, " XODn: True\n", " XODn: False\n") );
+ }
+//remove duplicate signals
+XOUp = ExRem(XOUp, XODn);
+XODn = ExRem(XODn, XOUp);
+
+if(parmDebug == 1)
+ {
+  printf(WriteIf(XOUp, "after= XOUp: True", "after= XOUp: False") + WriteIf(XODn, " XODn: True\n", " XODn: False\n") );
+ }
+//find the current Pivot Points - PL and PH
+//remember XOUp = 1 means a PL and XODn =1 means a PH
+PLBars = IIf(XOUp, LowestSinceBars(XODn, L ,1), 0); //find the bar that produced the Lowest Low
+PHBars = IIf(XODn, HighestSinceBars(XOUp, H, 1),0); //find the bar that produced the Highest High
+//PLPrice = IIf(XOUp, Ref(L, -PLBars), 0);
+//PHPrice = IIf(XODn, Ref(H, -PHBars),0);
+PLPrice =  Ref(L, -PLBars);
+PHPrice =  Ref(H, -PHBars);
+
+//keep track of the previous Pivot Points
+PrevPLBars = Ref(BarsSince(XOUp), -1) +1;
+PrevPHBars =  Ref(BarsSince(XODn), -1) +1;
+PrevPLPrice =  Ref(PLPrice, -prevPLBars);
+PrevPHPrice =  Ref(PHPrice, -PrevPHBars );
+PivotsCloseEnough = TickValue * parmTickMultipler;
+PLDifference = MroundP(PLPrice - PRevPLPrice, ticker.TickSize);
+PHDifference = MroundP(PHPrice - PrevPHPrice, ticker.TickSize);
+PPTrend = IIf(XOUp AND (PLDifference > PivotsCloseEnough) AND PrevPHPrice > PrevPLPrice AND PRevPHPrice > PLPrice, 1, 
+    IIf(XOUp AND (PLDifference <  - PivotsCloseEnough) AND PRevPHPrice > PrevPLPrice AND PrevPHPrice > PLPrice, -1,
+     IIf(XODn AND (PHDifference > PivotsCloseEnough) AND PrevPLPrice < PrevPHprice AND PrevPLPrice < PHPrice, 1,
+    IIf(XODn AND (PHDifference < -PivotsCloseEnough) AND PrevPLPrice < PrevPHPrice AND PrevPLPrice < PHPrice, -1, 0)) ));
+/*
+PPTrend = IIf(XOUp AND PLPrice > PRevPLPrice AND PrevPHPrice > PrevPLPrice AND PRevPHPrice > PLPrice, 1, 
+    IIf(XOUp AND PLPrice < PRevPLPrice AND PRevPHPrice > PrevPLPrice AND PrevPHPrice > PLPrice, -1,
+     IIf(XODn AND PHPrice > PrevPHPrice AND PrevPLPrice < PrevPHprice AND PrevPLPrice < PHPrice, 1,
+    IIf(XODn AND PHPrice < PrevPHPrice AND PrevPLPrice < PrevPHPrice AND PrevPLPrice < PHPrice, -1, 0)) ));
+*/
+if(ParmDebug)
+ {
+  printf("Current PH Bar: %g% /Price: %g%\n", PHBars, PHPrice);
+  printf("Current PL Bar: %g% /Price: %g%\n", PLBars, PLPrice);
+  printf("Previous PH Bar: %g% /Price: %g%\n", PrevPHBars, PrevPHPrice);
+  printf("Previous PL Bar: %g% /Price: %g%\n", PrevPLBars, PrevPLPrice) ;
+  printf("PP Trend: %g%\n", PPTrend);
+  printf("PHPrice - PrevPHPrice: %g%\nPLPrice - PrevPLPrice: %g%\nPivotsCloseEnough: %g%\n", PHDifference, PLDifference, PivotsCloseEnough);
+ }
+//PLot pivots as  text
+dist = parmPPTextOffSet * ATR(10);
+//for( i = 0; i < BarCount -1; i++)
+for( i = 0; i < BarCount ; i++)
+ {
+  if(XOUp[i ] == 1 ) //cross up -plot the Pivot Low
+   {
+    PlotText("PL \n"+PLPrice[i], i - PLBars[i], PLPrice[i] - dist[i] , parmPPTextColor, IIf(PPTrend[i] == 1, parmPPTrndColorUp, IIf(PPTrend[i] == -1, parmPPTrndColorDn, colorYellow) ));
+   }
+  if(XODn[i ] == 1 ) //cross down - plot the pivot high
+   {
+    PlotText("PH \n"+PHPrice[i], i - PHBars[i], PHPrice[i] + dist[i], parmPPTextColor, IIf(PPTrend[i] == 1, parmPPTrndColorUp, IIf(PPTrend[i] == -1, parmPPTrndColorDn, colorYellow) ));
+   }
+ } //end For
+// Plot A900/AutoStop cross over/under
+if(parmA900AutoStopX == 1)
+ {
+  PlotShapes(IIf(Cross(KPA900, KPAutoStop), shapeUpTriangle, shapeNone), parmA900AutoStopColorX, 0, L, -20);
+  PlotShapes(IIf(Cross(KPAutoStop, KPA900), shapeDownTriangle, shapeNone), parmA900AutoStopColorX, 0, H , -20);
+ }
+//PHLine = LineArray(BarCount - LastValue(PHBars) -3, LastValue(PHPrice), BarCount - LastValue(PHBars) +2, LastValue(PHPrice), 0);
+//Plot(PHLine, "PH", colorBlack, styleLine);
+//PLLine = LineArray(BarCount - LastValue(PLBars) -3, LastValue(PLPrice), BarCount - LastValue(PLBars) +2, LastValue(PLPrice), 0);
+//Plot(PLLine, "PL", colorBlack, styleLine);
+// identify M, lazy M, W and Lazy W formations
+//voice
+if(parmVoice ==1)
+ {
+  if(NewBarSignal)
+  {
+   if( LastValue(Ref(XODn, -1)) == 1 AND LastValue(Ref(PPTrend, -1)) == 1)  Say(Interval(2) + " New pivot. Higher high.");
+   if( LastValue(Ref(XODn, -1)) == 1 AND LastValue(Ref(PPTrend, -1)) == -1) Say(Interval(2) + " New pivot. Lower high.");
+   if( LastValue(Ref(XODn, -1)) == 1 AND LastValue(Ref(PPTrend, -1)) == 0)  Say(Interval(2) + " New pivot. M Top.");
+
+   if( LastValue(Ref(XOUp,-1))  ==1 AND LastValue(Ref(PPTrend, -1)) == 1)   Say(Interval(2) + " New pivot. Higher low.");
+   if( LastValue(Ref(XOUp,-1))  ==1 AND LastValue(Ref(PPTrend, -1)) == -1)  Say(Interval(2) + " New pivot. Lower low.");
+   if( LastValue(Ref(XOUp,-1))  ==1 AND LastValue(Ref(PPTrend, -1)) == 0)   Say(Interval(2) + " New pivot. W bottom.");
+  }
+ }
+//Pivot Pop code
+if(parmPivotPop == 1)
+ {
+  //Kp indicators for Pivot Pop
+  dummy = E_TSKPFAST2(Open, High, Low, Close, Volume);
+  KPFast2 = IIf(tskp_fast2val1 > 0, 1, -1);
+  BarsSinceXOUp =BarsSince(XOUp);
+  BarsSinceXODn = BarsSince(XODn);
+  switch(parmFilter)
+   {
+    case "None": 
+     PopFilter = True;
+     break;
+    case "KPMSL":
+     swVal = E_TSKPSWINGLINE(High, Low, Close);
+     KPMSL = tskp_swmean;
+     PopFilter = IIf(BarsSinceXOUp < BarsSinceXODn AND (C > KPMSL), True, IIf(BarsSinceXODn < BarsSinceXOUp AND (C < KPMSL), True, False));
+     break;
+    case "KPWaterLevel":
+     KPWaterlevel = E_TSKPWATERLEVEL(Open,High,Low,Close,Volume);
+     PopFilter = IIf(BarsSinceXOUp < BarsSinceXODn  AND (C > KPWaterLevel), True, IIf(BarsSinceXODn < BarsSinceXOUp AND (C < KPWaterLevel), True, False));
+     break;
+    case "KPMedium":
+     dummy = E_TSKPMEDIUM(Close);  
+     KPMediumUp = tskp_mediumup;
+     KPMediumDn = tskp_mediumdown;
+     KPMediumMA = tskp_mediumma;
+     KPMedium = KPMediumUp + KPMediumDn;
+     PopFilter = IIf(BarsSinceXOUp < BarsSinceXODn AND (KPMedium > KPMediumMA), True, IIf(BarsSinceXODn < BarsSinceXOUp AND (KPMedium < KPMediumMA), True, False));
+     break;
+   }
+  //calculations
+  UBB = BBandTop(C, parmBBPeriod, parmBBSD);
+  LBB = BBandBot(C, parmBBPeriod, parmBBSD);
+
+  if(parmDebug == 1)
+   {
+    printf("Fast2: %1.0f% \nUBB: %0.6f%\nLBB: %0.6f%\nC: %g%\n", KPFast2, UBB, LBB, C);
+    printf("Bars since Last XOUp: %1.0f%\nBars since last XODn: %1.0f%\n", BarsSinceXOUp, BarsSinceXODn );
+    printf("Bars since PPTrnd =1: %1.0f%\nBars since PPTrnd = -1: %1.0f%\n", BarsSince(PPTrend ==1), BarsSince(PPTrend == -1) ); 
+    printf("ParmFilter: " + parmFilter + "\nPopFilter: %g%\n", PopFilter);
+    switch(parmFilter)
+    {
+     case "None":
+      break;
+     case "KPMSL":
+      printf("KPMSL: %g%\n", KPMSL);
+      break;
+     case "KPWaterLevel":
+      printf("KPWaterlevel: %g%\n",  KPWaterLevel);
+      break;
+     case "KPMedium":
+      printf("KPMedium: %g%\nKPMediumMA: %g%\n", KPMedium, KPMediumMA);
+      break;
+   }
+  }
+  PPopUp = (BarsSince(PPTrend == 1) <= parmBarCancel) AND (BarsSince(XOUp) <= parmBarCancel) AND (KPA900 >= KPAutoStop) AND(KPFast2 == 1) AND (KPScoreCard >= 5)
+     AND PopFilter
+     AND (C > UBB) AND (C > O) ;
+  PPopUp = IIf( PPopUp AND Sum(PPopUP, BarsSince(XOUp)+1) == 1, True, False ); //keep only the 1st signal
+  PPopDn = (BarsSince(PPTrend == -1) <= parmBarCancel) AND (BarsSince(XODn) <= parmBarCancel) AND (KPA900 <= KPAutoStop) AND(KPFast2 == -1) AND (KPScoreCard <= -5)
+     AND PopFilter
+     AND (C < LBB) AND (C < O) ;
+  PPopDn = IIf( PPopDn AND Sum(PPopDn, BarsSince(XODn) + 1) == 1, True, False); //keep only the first signal
+  if(parmDebug == 1)
+   {
+    printf(WriteIf(PPopUp,"PPopUp: True", "PPopUp: False") + WriteIf(PPopDn, " PPopDn: True\n", " PPopDn: False\n") );
+    printf("PPopUp sum: %1.0f% \nPPopDn sum: %1.0f%", Sum(PPopUP, BarsSince(XOUp)) , Sum(PPopDn, BarsSince(XODn)) );
+   }
+  // Plots
+  PlotShapes(IIf(PPopUp, shapeHollowUpArrow, shapeNone), colorDarkBlue, 0, L, -30);
+  PlotShapes(IIf(PPopDn, shapeHollowDownArrow, shapeNone), colorDarkRed, 0, H, -30);
+  
+  if(ParmPlotPPIndicators == 1) //plot the Pivot Pop Indicators
+   {
+    Plot(UBB, "Upper BB", parmBBColor, parmBBStyle);
+    Plot(LBB, "Lower BB", parmBBColor, parmBBStyle);
+    if(parmPlotA900AutoStop == 1)
+     {
+      Plot(KPA900, "A900", parmA900Color, parmA900Style);
+      Plot(KPAutoStop, "AutoStop", parmAutoStopColor, parmAutoStopStyle);
+     }
+    Plot( 0.5, "Fast2", IIf(tskp_fast2val1 > 0, parmPPTrndColorUp, parmPPTrndColorDn) , styleArea |  styleNoLabel | styleOwnScale , 0, 10);
+   } //endif parmPlotPPIndicators
+   if(parmPlotFilter == 1)
+    {
+     switch(parmFilter)
+     {
+      case "None":
+      break;
+      case "KPMSL":
+       Plot(KPMSL, "KPMSL", parmFilterColor, parmFilterStyle);
+       break;
+      case "KPWaterLevel":
+       Plot(KPWaterLevel, "KPWaterLevel", parmFilterColor, parmFilterStyle);
+       break;
+      case "KPMedium":
+      // HMM how to print Medium on a price chart
+      break;
+      }
+    } //endif parmPlotFilter
+ } // end if parmPivotPop
+_SECTION_END();
+
+
+
+_SECTION_BEGIN("NICK MA Swing"); 
+ 
+DayH = TimeFrameGetPrice("H", in15Minute*2, -1);// yesterdays high 
+DayL = TimeFrameGetPrice("L", in15Minute*2, -1);//low 
+DayC = TimeFrameGetPrice("C", in15Minute*2, -1);//close
+DayO = TimeFrameGetPrice("O", in15Minute*2 );//open today
+ 
+R6 = (DayH / DayL) * DayC * 1.002;
+R5 = (DayH / DayL) * DayC;
+R4 = (((DayH / DayL) + 0.83) / 1.83) * DayC;
+R3 = ( ( (DayH / DayL) + 2.66) / 3.66) * DayC;
+R2 = ( ( (DayH / DayL) + 4.5) / 5.5) * DayC;
+R1 = ( ( (DayH / DayL) + 10) / 11) * DayC;
+ 
+S1 = (2- ( ( (DayH / DayL) + 10) / 11)) * DayC;
+S2 = (2-( (DayH / DayL) + 4.5) / 5.5) * DayC;
+S3 = (2-(( DayH / DayL) + 2.66) / 3.66) * DayC;
+S4 = (2-( (DayH / DayL) + 0.83) / 1.83) * DayC;
+S5 = (2-( DayH / DayL)) * DayC;
+S6 = (2-( DayH / DayL)) * DayC * 0.998;
+
+//Plot(s3, "", colorGreen,styleThick+styleDashed);
+//Plot(s4, "", colorGreen,styleThick+styleDashed);
+//Plot(r3, "", colorRed,styleThick+styleDashed);
+//Plot(r4, "", colorRed,styleThick+styleDashed); 
+
+pivot = (DayH+DayL+DayC)/3;
+NW = pivot;
+J = MA(Close,3);
+piv = (H+L+C)/3;
+_SECTION_END();
+
+CCI_diff = round(10*(CCI(14) - Ref(CCI(14),-1)))/10;
+//=================TITLE================================================================================================
+_SECTION_BEGIN("Title");
+Title = EncodeColor(colorWhite)+ "Line Chart" + " - " +  Name() + " - " + EncodeColor(colorRed)+ Interval(2) + EncodeColor(colorWhite) +
+ "  - " + Date() +
+
+"\n"+
+WriteIf(H > Ref(H,-1),EncodeColor(colorBrightGreen),EncodeColor(colorRed))+"ex  "+Ref(H,-1)+" Hi "+H+"\n"+ 
+EncodeColor(colorWhite)+"Op "+O+EncodeColor(colorAqua)+" Cl : " +C+"\n"+
+WriteIf(L < Ref(L,-1),EncodeColor(colorRed),EncodeColor(colorBrightGreen))+"ex  "+Ref(L,-1)+" Lo "+L+
+"\n"+
+
+//WriteIf (Buy ,EncodeColor(colorGreen)+ " GO LONG / Reverse Signal at "+C+"  ","")+
+//WriteIf (Sell ,EncodeColor(colorRed)+ " EXIT LONG / Reverse Signal at "+C+"  ","")+"\n"+EncodeColor(colorWhite)+
+//WriteIf(Sell , EncodeColor(colorRed)+"Total Profit/Loss for the Last Trade Rs."+round(C-BuyPrice)+"","")+
+//WriteIf(Buy  ,EncodeColor(colorGreen)+ "Total Profit/Loss for the Last trade Rs."+round(SellPrice-C)+"","")+
+//WriteIf(Long AND NOT Buy,EncodeColor(colorGreen)+ "Trade : Long - Entry price Rs."+(BuyPrice),"")+
+//WriteIf(shrt AND NOT Sell,EncodeColor(colorRed)+ "Trade : Short - Entry price Rs."+(SellPrice),"")+"\n"+ 
+//WriteIf(Long AND NOT Buy, EncodeColor(colorYellow)+"Current Profit/Loss Rs."+round(C-BuyPrice)+"\n Place SL at "+s4,"")+
+//WriteIf(shrt AND NOT Sell,EncodeColor(colorYellow)+ "Current Profit/Loss Rs."+round(SellPrice-C)+"\n Place SL at "+R4,"")+
+//"\n"+
+WriteIf(C > R6,EncodeColor(colorYellow)+"\n Price "+C,"")+
+EncodeColor(colorDarkRed)+"\n H6  : "+R6+
+WriteIf(C > R5 AND C < r6,EncodeColor(colorYellow)+" \n Price "+C,"")+
+EncodeColor(colorDarkRed)+"\n H5  : "+R5+
+WriteIf(C > R4 AND C < r5,EncodeColor(colorYellow)+" \n Price "+C,"")+
+EncodeColor(colorRed)+"\n H4  : "+R4+
+WriteIf(C > R3 AND C < r4,EncodeColor(colorYellow)+" \n Price "+C,"")+
+EncodeColor(colorRed)+"\n H3  : "+R3+
+
+WriteIf(C > s3 AND C < r3,EncodeColor(colorYellow)+" \n Price "+C,"")+
+EncodeColor(colorBrightGreen)+"\n L3  : "+S3+
+WriteIf(C > s4 AND C < s3,EncodeColor(colorYellow)+" \n Price "+C,"")+
+EncodeColor(colorBrightGreen)+"\n L4  : "+S4+
+WriteIf(C > s5 AND C < s4,EncodeColor(colorYellow)+" \n Price "+C,"")+
+EncodeColor(colorDarkGreen)+"\n L5  : "+S5+
+WriteIf(C > s6 AND C < s5,EncodeColor(colorYellow)+" \n Price "+C,"")+
+EncodeColor(colorDarkGreen)+"\n L6  : "+S6+
+WriteIf(C < s6,EncodeColor(colorYellow)+" \n Price "+C,"")+
+"\n"+"\n"+
+WriteIf(a1 > 0, EncodeColor(colorBrightGreen),EncodeColor(colorRed))+"MAIN     "+
+WriteIf(a1 > Ref(a1,-1), EncodeColor(colorBrightGreen)+"POS",EncodeColor(colorRed)+"NEG")+round(a1*10)/10+
+"\n"+
+WriteIf(a2 > 0, EncodeColor(colorBrightGreen),EncodeColor(colorRed))+"MID       "+
+WriteIf(a2 > Ref(a2,-1), EncodeColor(colorBrightGreen)+"POS",EncodeColor(colorRed)+"NEG")+round(a2*10)/10+
+"\n"+
+WriteIf(a3 > 0, EncodeColor(colorBrightGreen),EncodeColor(colorRed))+"Trigger "+
+WriteIf(a3 > Ref(a3,-1), EncodeColor(colorBrightGreen)+"POS",EncodeColor(colorRed)+"NEG")+round(a3*10)/10+
+"\n"+
+"\n"+
+WriteIf(Ref(CCI(14),-1) > Ref(CCI(14),-2),EncodeColor(colorBrightGreen),EncodeColor(colorRed))+ 
+"CCI-14 \n Ex "+round(10*Ref(CCI(14),-1))/10+ " "+
+WriteIf(CCI(14) > 100,EncodeColor(colorBlue)+"Now "+round(10*CCI(14))/10,WriteIf(CCI(14) < -100,EncodeColor(colorCustom12)+"Now "+round(10*CCI(14))/10,WriteIf(CCI(14) > Ref(CCI(14),-1),EncodeColor(colorBrightGreen)+"Now "+round(10*CCI(14))/10,EncodeColor(colorRed)+"Now "+round(10*CCI(14))/10)))+
+"\n"+
+WriteIf(Ref(cci_diff,-1) > Ref(cci_diff,-2),EncodeColor(colorBrightGreen),EncodeColor(colorRed))+"diff Ex "+Ref(CCI_diff,-1)+
+
+WriteIf(cci_diff > Ref(cci_diff,-1),EncodeColor(colorBrightGreen),EncodeColor(colorRed))+"   Now"+CCI_diff
+
+;
