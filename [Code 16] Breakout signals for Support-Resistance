@@ -1,0 +1,43 @@
+//Breakout signals
+_SECTION_BEGIN("Price");
+SetChartOptions(0,chartShowArrows|chartShowDates);
+_N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Close %g (%.1f%%) {{VALUES}}", O, H, L, C, SelectedValue( ROC( C, 1 ) ) ));
+Plot( C, "Close", ParamColor("Color", colorBlack ), styleNoTitle | ParamStyle("Style") | GetPriceStyle() ); 
+_SECTION_END();
+
+_SECTION_BEGIN("CH");
+Ch = Param("ch", 5,1,15,1);
+bi = Cum(1)-1;
+cbar = Param("cbar",2,2,50,1);
+function GetTop(bars) 
+{
+Top = H == HHV(H,2*bars) AND Ref(HHV(H,bars),bars) < H;
+Top = Top AND LastValue(bi)-ValueWhen(Top,bi) > bars;
+return Top;
+}
+function GetValley(bars)
+{
+Valley = L == LLV(L,2*bars) AND Ref(LLV(L,bars),bars) > L;
+Valley = Valley AND LastValue(bi)-ValueWhen(Valley,bi) > bars;
+return Valley;
+}
+
+P1 = GetTop(Ch);
+V1 = GetValley(Ch);
+P1 = IIf(P1,IIf(ValueWhen(P1,bi,2) < ValueWhen(V1,bi),P1,IIf(ValueWhen(P1,H,2) > H,False,P1)),P1);
+P1 = IIf(P1 AND ValueWhen(P1,bi,0) > bi,IIf(ValueWhen(P1,bi,0) < ValueWhen(V1,bi,0),IIf(ValueWhen(P1,H,0) >= H,False,P1),P1),P1);
+V1 = IIf(V1,IIf(ValueWhen(V1,bi,2) < ValueWhen(P1,bi),V1,IIf(ValueWhen(V1,L,2)<L,False, V1)),V1);
+V1 = IIf(V1 AND ValueWhen(V1,bi,0) > bi ,IIf(ValueWhen(V1,bi,0) < ValueWhen(P1,bi,0),IIf(ValueWhen(V1,L,0) <= L, False,V1),V1),V1); 
+RF=ValueWhen(P1,H);
+SF=ValueWhen(V1,L);
+RF1 = IIf(RF AND BarsSince(P1) <=cbar,RF,Null);
+SF1 = IIf(SF AND BarsSince(V1) <=cbar,SF,Null);
+Plot(RF1,"",colorWhite,styleDots | styleNoLine);
+Plot(SF1,"",colorWhite,styleDots | styleNoLine); 
+Plot(RF,"",colorLightOrange,40+16);
+Plot(SF,"",colorLightOrange,40+16);
+PlotShapes(IIf(P1, shapeSmallSquare,shapeNone),colorYellow,0,H,10);
+PlotShapes(shapeSmallCircle*P1,colorBlack,0,H,10);
+PlotShapes(IIf(V1, shapeSmallSquare,shapeNone),colorYellow,0,L,-10);
+PlotShapes(shapeSmallCircle*V1,colorBlack,0,L,-10);
+_SECTION_END(); 
