@@ -1,0 +1,22 @@
+//Accurate Buy Sell Positional
+_SECTION_BEGIN("Buy/Sell");
+M1=EMA(((2*EMA(C,29/2))-EMA(C,29)),2);
+M2=EMA(((2*EMA(C,29/2))-EMA(C,29)),5);
+Buy     = Cross(M1, M2) ;
+Sell    = Cross(M2, M1) ;
+ 
+Buy     = ExRem(Buy, Sell);
+Sell    = ExRem(Sell, Buy);
+mycolor = IIf(M1 > M2, colorLime, colorRed);
+shape   = Buy * shapeUpArrow + Sell * shapeDownArrow ;
+ 
+ 
+PlotShapes( shape, IIf( Buy, colorGreen, colorRed ),0, IIf( Buy, Low, High ) );
+dist = 1.5*ATR(20);
+for( i = 0; i < BarCount; i++ ) {
+       if( Buy[i] ) PlotText( "Buy\n@" + Close[i], i, Low[i] - dist[i], colorGreen );
+       if( Sell[i] ) PlotText( "sell\n@" + Close[i], i, Low[i] + dist[i], colorRed );
+    }
+ 
+Plot( Close, "Close", mycolor, styleNoTitle | styleCandle | styleThick   );
+_SECTION_END();
