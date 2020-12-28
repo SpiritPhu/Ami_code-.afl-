@@ -1,0 +1,154 @@
+//95 Percent Accurate Modified
+_SECTION_BEGIN("linkon");
+M1=EMA(((2*EMA(C,29/2))-EMA(C,29)),2); 
+M2=EMA(((2*EMA(C,29/2))-EMA(C,29)),5);
+Buy     = Cross(M1, M2) ;
+Sell    = Cross(M2, M1) ;
+
+Buy     = ExRem(Buy, Sell);
+Sell    = ExRem(Sell, Buy);
+mycolor = IIf(M1 > M2, colorLime, colorRed);
+shape   = Buy * shapeUpArrow + Sell * shapeDownArrow ;
+
+Plot (m1,"",colorWhite,styleThick);
+Plot (m2,"",colorOrange,styleThick);
+PlotShapes( shape, IIf( Buy, colorWhite, colorWhite ),0, IIf( Buy, Low, High ) );
+dist = 1.5*ATR(20);
+for( i = 0; i < BarCount; i++ ) {
+       if( Buy[i] ) PlotText( "Buy\n@" + Close[i], i, Low[i] - dist[i], colorGreen );
+       if( Sell[i] ) PlotText( "sell\n@" + Close[i], i, Low[i] + dist[i], colorRed );
+ }
+
+Plot( Close, "Close", mycolor, styleNoTitle | styleBar | styleThick   );
+_SECTION_END();
+
+_SECTION_BEGIN("Price");
+Col_1 = IIf(EMA(RSI(39),30) > Ref(EMA(RSI(39),30),-1),colorGreen,colorOrange);
+//Plot( C, "Close", col_1, styleCandle+styleThick ); 
+_SECTION_END();
+
+_SECTION_BEGIN("guppy");
+e3 = EMA(Close,3);
+e5 = EMA(Close,5);
+e8 = EMA(Close,8);
+e10 = EMA(Close,10);
+e12 = EMA(Close,12); 
+e15 = EMA(Close,15);
+
+e30 = EMA(Close,30);
+e35 = EMA(Close,35);
+e40 = EMA(Close,40);
+e45 = EMA(Close,45);
+e50 = EMA(Close,50);
+e55 = EMA(Close,55);
+e60 = EMA(Close,60);
+Buy_guppy = e3>e45;
+Sell_guppy = e45 > e3;
+//Buy_guppy = ExRem (Buy_guppy,Sell_guppy);
+//Sell_guppy = ExRem(Sell_guppy,Buy_guppy);
+//PlotShapes(Buy_guppy*shapeUpTriangle, colorYellow);
+//PlotShapes(Sell_guppy*shapeDownTriangle,colorYellow);
+
+Plot (e3,"",colorBlue,styleNoLabel);
+Plot (e5,"",colorBlue,styleNoLabel);
+Plot (e8,"",colorBlue,styleNoLabel);
+Plot (e10,"",colorBlue,styleNoLabel);
+Plot (e12,"",colorBlue,styleNoLabel);
+Plot (e15,"",colorBlue,styleNoLabel);
+
+Plot (e30,"",colorYellow,styleNoLabel+styleThick);
+Plot (e35,"",colorRed,styleNoLabel+styleThick);
+Plot (e40,"",colorRed,styleNoLabel+styleThick);
+Plot (e45,"",colorRed,styleNoLabel+styleThick);
+Plot (e50,"",colorRed,styleNoLabel+styleThick);
+Plot (e55,"",colorRed,styleNoLabel+styleThick);
+Plot (e60,"",colorRed,styleNoLabel+styleThick);
+
+_SECTION_END();
+
+_SECTION_BEGIN("plot ema of rsi");
+
+r = 21;
+slow_per = 3;
+fast_per = 34;
+
+Buy_rsi = EMA(RSI(r),slow_per)> EMA(RSI(r),fast_per);
+Sell_rsi= EMA(RSI(r),fast_per) >EMA(RSI(r),slow_per); 
+
+//Plot (EMA(RSI(r),slow_per),"slow rsi",colorRed,styleDots);
+//Plot (EMA(RSI(r),fast_per),"fast rsi",colorBlue,styleThick);
+
+
+Buy = Buy_rsi AND Buy_guppy; //AND Buy_stochk;
+Sell = sell_rsi AND sell_guppy; //AND SELL_stochk;
+Buy = ExRem(Buy,Sell);
+Sell = ExRem(Sell,Buy);
+PlotShapes(Buy*shapeHollowSmallUpTriangle,colorYellow);
+PlotShapes(Sell*shapeHollowSmallDownTriangle,colorYellow);
+
+
+
+_SECTION_END();
+
+_SECTION_BEGIN("Indicator price rsi  levels");
+// RSI Levels - appplied to Price Chart shows how far 
+// tomorrow's closing price has to move in order for   
+// the RSI to cross the 70, 50 & 30 levels.  
+
+pd = Param("Periods",13,5,144,1); 
+pds = 2*pd-1;//     (Adjustment for Wilders MA) 
+aa = Close-Ref(Close,-1); 
+uu = EMA(Max(0,aa),pds); 
+dd=  EMA((Max(0,0-aa)),pds); 
+
+rf = IIf(C>2,1000,10000); 
+
+c1 = Param("Upper Level",70,50,90,1); 
+qq1 =100/(100-c1)-1; 
+ff1 = qq1*dd-uu; 
+ff2 = ff1/qq1; 
+f1 = Max(ff1,ff2); 
+UL = Close + f1*(pds-1)/2; 
+UL = IIf(UL>C,floor(UL*rf),ceil(UL*rf))/rf; 
+
+c2 = Param("Equilibrium",50,50,50,0);  
+qq2 =100/(100-c2)-1;// [=1] 
+ff = dd-uu; 
+MM = Close + ff*(pds-1)/2; 
+MM = IIf(MM>C,floor(MM*rf),ceil(MM*rf))/rf; 
+
+c3 = Param("Lower Level",30,10,50,1); 
+qq3 =100/(100-c3)-1; 
+ff1 = qq3*dd-uu; 
+ff2 = ff1/qq3; 
+f3 = Min(ff1,ff2); 
+LL = Close + f3*(pds-1)/2; 
+LL = IIf(LL>C,floor(LL*rf),ceil(LL*rf))/rf; 
+
+band = Param("band width",4,0,15,0.25);
+mmu = MM+band;
+mmd = MM-band;
+
+
+X=Cross( C,LL);
+Y=Cross(UL,C);
+
+Buy1= X ;
+Sell1= Y ;
+
+PlotShapes(shapeUpArrow*Buy1,colorBlue,0,L,-15);
+PlotShapes(shapeDownArrow*Sell1,colorBlue,0,H,-15);
+
+Filter=Buy1 OR Sell1 ;
+AddTextColumn(FullName(),"Name");
+AddColumn(Buy1,"Buy");
+AddColumn(Sell1,"sell");
+
+
+Title = Name() + "  -  RSI(" + WriteVal(pd,0.0) + ")  -  Close=" +  WriteVal(Close,0.3) + "    UL=" +  WriteVal(UL,0.4) + "    MM=" +  WriteVal(MM,0.4) + "    LL=" +  WriteVal(LL,0.4); 
+_SECTION_END();
+
+"plotted pivots \n
+Plotted the avarage as a bars \n
+";
+_SECTION_END();
