@@ -1,0 +1,27 @@
+//5-20 MA Crossover Cloud System
+_SECTION_BEGIN("Price");
+SetChartOptions(0,chartShowArrows|chartShowDates);
+_N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Close %g (%.1f%%) {{VALUES}}", O, H, L, C, SelectedValue( ROC(C, 1 ) ) ));
+Plot( C, "Close", ParamColor("Color", colorBlack ), styleNoTitle | ParamStyle("Style") | GetPriceStyle() ); 
+_SECTION_END();
+
+_SECTION_BEGIN("MA");
+
+
+P = ParamField("Price field",-1);
+Periods1 = Param("Periods1", 5, 2, 300, 1, 10 );
+Periods2 = Param("Periods2", 20, 2, 300, 1, 10 );
+Plot( MA( P, Periods1 ), StrFormat(_SECTION_NAME()+"(%g)", Periods1), ParamColor( "Color1", colorRed ), ParamStyle("Style") ); 
+Plot( MA( P, Periods2 ), StrFormat(_SECTION_NAME()+"(%g)", Periods2), ParamColor( "Color2", colorBlue ), ParamStyle("Style") ); 
+Buy = Cross( MA( P, Periods1 ), MA( P, Periods2 ) );
+Sell = Cross(MA( P,Periods2 ), MA( P, Periods1 ) );
+
+PlotShapes(IIf(Buy==1, shapeHollowUpArrow , shapeNone), colorGreen, 0,Low, Offset=-15); 
+PlotShapes(IIf(Sell==1, shapeHollowDownArrow, shapeNone), colorRed, 0,High, Offset=-15);
+
+PlotOHLC( Null,MA( P, Periods1 ),MA( P, Periods2 ),Null, "", IIf(MA( P, Periods1 )>MA( P, Periods2 ) ,colorLime,colorRose), styleCloud);
+
+Color = IIf( MA(p,periods1) > MA(p,periods2) , colorLime, IIf( MA(p,periods2) > MA(p,periods1), colorPink, colorGrey50 )); 
+Plot( 1, "", Color, styleArea | styleOwnScale | styleNoLabel, -0.1, 30 );
+
+_SECTION_END();
